@@ -11,7 +11,8 @@ services:
       - /usr/src/app/node_modules
     tty: true
     depends_on: 
-      - db    
+      - db 
+    entrypoint: ["./wait-for-it.sh", "db:3306", "--", "npm", "start"] # Comando de início do app.
 
   db:
     image: mysql:5.7
