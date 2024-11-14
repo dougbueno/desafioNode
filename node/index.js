@@ -1,58 +1,63 @@
 const express = require('express');
-const axios = require('axios').default;
-const mysql = require('mysql');
-
 const app = express();
-const PORT = 3000;
-
+const port = 3000;
 const config = {
-    host: 'db',
+    host: 'database',
     user: 'root',
-    password: 'password',
-    database: 'nodedb',
+    password: 'root',
+    database: 'nodedb'
 };
+const mysql = require('mysql');
+const connection = mysql.createConnection(config);
+
+connection.connect();
+
+const sql = `
+    CREATE TABLE IF NOT EXISTS people (
+      id int not null auto_increment,
+      name varchar(255),
+      primary key(id)
+    )
+  `;
+
+connection.query(sql);
+
+app.use(express.json());
 
 app.get('/', (req, res) => {
-    insertPeopleName(res);
-});
-
-app.listen(PORT, () => {
-    console.log('STARTED AT ' + PORT);
-});
-
-async function getPersonName() {
-    const RANDOM = Math.floor(Math.random() * 10);
-    const response = await axios.get('https://swapi.dev/api/people');
-    personName = response.data.results;
-    return personName[RANDOM].name;
-}
-
-async function insertPeopleName(res) {
-    const name = await getPersonName();
-    const connection = mysql.createConnection(config);
-    const sql = `INSERT INTO people(name) values('${name}')`;
-
-    connection.query(sql);
-    console.log(`${name} inserido no banco!`);
-    getPeople(res, connection);
-}
-
-function getPeople(res, connection) {
-    const sql = `SELECT id, name FROM people`;
-
-    connection.query(sql, (error, results, fields) => {
-        if (error) {
-            throw error
-        };
-
-        let table = '<table>';
-        table += '<tr><th>#</th><th>Name</th></tr>';
-        for (let people of results) {
-            table += `<tr><td>${people.id}</td><td>${people.name}</td></tr>`;
+    const sql = 'SELECT * FROM people';
+    
+    connection.query(sql, (err, results) => {
+        if (err) {
+            console.error('Erro ao consultar os registros:', err);
+            return res.status(500).send('Erro ao consultar os registros.');
         }
 
-        table += '</table>';
-        res.send('<h1>Full Cycle Rocks!</h1>' + table);
+        let html = '<h1>Full Cycle Rocks!</h1>\n';
+        
+        results.forEach(user => {  
+            html += '<hr>';      
+            html += `<h2>Nome: ${user.name}</h2>`;
+            html += '<hr>';
+        });
+
+        res.send(html);
     });
-    connection.end();
-}
+});
+
+app.post('/pessoas', (req, res) => {
+    const { name } = req.body;
+    const sql = `INSERT INTO people(name) values( ? );`;
+  
+    connection.query(sql, [name], (err, results) => {
+        if (err) {
+            console.error('Erro ao inserir o registro:', err);
+            return res.status(500).send('Erro ao inserir o registro.');
+        }
+        res.status(201).send('Registro inserido com sucesso.');
+    });
+});
+
+app.listen(port, () => {
+    console.log(`Rodando na porta ${port}`);
+});
