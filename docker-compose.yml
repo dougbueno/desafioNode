@@ -1,4 +1,4 @@
-version: '3.7' # Usar versão 3.7 ou superior para suporte ao healthcheck
+version: '3.7'
 
 services:
   app:
@@ -11,8 +11,9 @@ services:
       - /usr/src/app/node_modules
     tty: true
     depends_on: 
-      - db 
-    entrypoint: ["./wait-for-it.sh", "db:3306", "--", "npm", "start"] # Comando de início do app.
+      db:
+        condition: service_healthy # Espera pelo healthcheck do db antes de iniciar o app.
+    command: npm start # Comando de início do app.
 
   db:
     image: mysql:5.7
