@@ -1,43 +1,58 @@
-version: '3.7'
+version: '3.8'
 
 services:
-  app:
+  node-app:
+    image: node-app:1.9
     build:
       context: ./node
       dockerfile: Dockerfile
-    restart: always
+    container_name: node-app     
+    ports:
+      - 3000:3000
+    networks:
+      - desafio-net
     volumes:
       - ./node:/usr/src/app
       - /usr/src/app/node_modules
     tty: true
-    depends_on: 
-      db:
-        condition: service_healthy # Espera pelo healthcheck do db antes de iniciar o app.
-    command: npm start # Comando de início do app.
+    depends_on:
+      database:
+        condition: service_healthy      
 
-  db:
+  nginx:
+    image: nginx:3.6
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: nginx-proxy-reverse    
+    restart: always
+    ports:
+      - 8082:80
+    networks:
+      - desafio-net
+    depends_on:
+      database:
+        condition: service_healthy 
+  
+  database:
     image: mysql:5.7
     command: --innodb-use-native-aio=0
+    container_name: database
     restart: always
     tty: true
     volumes:
       - ./mysql:/var/lib/mysql
-      - ./node/.docker/mysql:/docker-entrypoint-initdb.d
-    environment: 
+    environment:
       - MYSQL_DATABASE=nodedb
-      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_ROOT_PASSWORD=root      
+    networks:
+      - desafio-net
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 10s
+      retries: 3
 
-  nginx:
-    build: 
-      context: ./nginx
-      dockerfile: Dockerfile
-    ports:
-      - "8080:80"
-    depends_on: 
-      - db
-      - app
+networks:
+  desafio-net:
+    driver: bridge
